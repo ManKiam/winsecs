@@ -1,3 +1,5 @@
-from . import keepass
+# from . import keepass
 
-modules = {**keepass.modules}
+# modules = {**keepass.modules}
+
+modules = {}
