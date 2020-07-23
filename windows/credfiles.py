@@ -32,8 +32,8 @@ class CredFiles:
                         blob = CREDENTIAL_BLOB(decrypted)
                         if decrypted is not None:
                             pwd_found.append({
-                                'Target': blob['Target'].decode('utf-16-le'),
-                                'Username': blob['Username'].decode('utf-16-le'),
+                                'Target': blob['Target'].decode('utf-16-le').rstrip('\0'),
+                                'Username': blob['Username'].decode('utf-16-le').rstrip('\0'),
                                 'Password': blob['Unknown3'].decode('utf-16-le'),
                                 'LastWritten': datetime.utcfromtimestamp(getUnixTime(blob['LastWritten']))
                             })
