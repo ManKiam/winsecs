@@ -115,6 +115,7 @@ class Chromium:
 
         for url, login, password in cursor.fetchall():
             try:
+                pwd = None
                 # Yandex passwords use a masterkey stored on windows credential manager
                 # https://yandex.com/support/browser-passwords-crypto/without-master.html
                 if is_yandex:
@@ -124,7 +125,7 @@ class Chromium:
                         except Exception:
                             p = json.loads(password)
 
-                        password = base64.b64decode(p['p'])
+                        pwd = base64.b64decode(p['p'])
                     except Exception:
                         # New version does not use json format
                         pass
@@ -141,30 +142,31 @@ class Chromium:
                     # Failed...
                 else:
                     # Decrypt the Password
-                    try:
-                        password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
-                    except:
-                        try:
-                            password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
-                        except:
-                            password_bytes = None
-
-                    if password_bytes is not None:
-                        password = password_bytes.decode()
-                    elif master_key:
+                    if master_key:
                         # chromium version > 80
                         try:
                             iv = password[3:15]
                             payload = password[15:]
                             cipher = AES.new(master_key, AES.MODE_GCM, iv)
-                            password = cipher.decrypt(payload)[:-16].decode()  # remove suffix bytes
+                            pwd = cipher.decrypt(payload)[:-16].decode()  # remove suffix bytes
                         except:
                             pass
+                    if pwd is None:
+                        try:
+                            password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
+                        except:
+                            try:
+                                password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
+                            except:
+                                password_bytes = None
+
+                        if password_bytes is not None:
+                            pwd = password_bytes.decode()
 
                 if not url and not login and not password:
                     continue
 
-                credentials.add((url, login, password))
+                credentials.add((url, login, pwd))
             except Exception:
                 log.debug(traceback.format_exc())
 
