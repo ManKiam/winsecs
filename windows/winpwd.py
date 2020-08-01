@@ -34,6 +34,7 @@ class WindowsPassword:
         - If not, check if a password stored in another application is also used as windows password
         - Windows password not found, return the DPAPI hash (not admin priv needed) to bruteforce using John or Hashcat
         """
+    pass
     #     file = os.path.join(profile['APPDATA'], 'Microsoft', 'Protect', profile['SID'], 'Preferred')
     #     mkfiles = profile.get('mkfiles')
     #     if not os.path.isfile(file) or not mkfiles:
