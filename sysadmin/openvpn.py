@@ -1,5 +1,4 @@
-import win32crypt
-from winsecs.utils import OpenKey, winreg, log
+from winsecs.utils import OpenKey, winreg, log, CryptUnprotectData
 
 
 class OpenVPN:
@@ -10,7 +9,7 @@ class OpenVPN:
         except Exception as e:
             log.debug(str(e))
 
-    def run(self):
+    def run(self, profile):
         key = self.check_openvpn_installed()
         if not key:
             return
@@ -23,7 +22,7 @@ class OpenVPN:
             try:
                 encrypted_password = winreg.QueryValueEx(skey, "auth-data")[0]
                 entropy = winreg.QueryValueEx(skey, "entropy")[0][:-1]
-                password = win32crypt.CryptUnprotectData(encrypted_password, None, entropy, None, 0)[1].decode()
+                password = CryptUnprotectData(encrypted_password, profile, entropy)
                 values['Password'] = password.decode('utf16')
             except Exception as e:
                 log.debug(str(e))

@@ -7,7 +7,6 @@ from hashlib import pbkdf2_hmac
 from binascii import hexlify, unhexlify
 
 from .lsa_secrets import LsaSecrets
-from .ppypykatz import Pypykatz
 from impacket.dpapi import MasterKeyFile, MasterKey, CredHist, DomainKey
 from winsecs.utils import log
 
@@ -198,12 +197,14 @@ class MasterKeyFiles:
                 return hexlify(decryptedKey).decode('latin-1')
 
     def run(self, profile):
+        if profile.get('mkfiles'):
+            return profile['mkfiles']
         founds = {}
         files = os.path.join(profile['APPDATA'], 'Microsoft', 'Protect', profile['SID'])
         if not os.path.isdir(files):
             return
         self.dpapiSystem = LsaSecrets().run(profile)
-        pypykatz = Pypykatz().run()
+        pypykatz = profile.get('pypykatz')
         if pypykatz:
             username = win32security.LookupAccountSid("", win32security.ConvertStringSidToSid(profile["SID"]))[0]
             self.dpapiSystem['NTHASH'] = unhexlify(pypykatz.get(username, {}).get('Nthash', ''))

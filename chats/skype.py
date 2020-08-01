@@ -3,17 +3,16 @@ import binascii
 import hashlib
 import os
 import struct
-import win32crypt
 from xml.etree.cElementTree import ElementTree
 
-from winsecs.utils import OpenKey, winreg, log
+from winsecs.utils import OpenKey, winreg, log, CryptUnprotectData
 from Crypto.Cipher import AES
 from winsecs.dico import get_dic
 
 
 class Skype:
     # get value used to build the salt
-    def get_regkey(self):
+    def get_regkey(self, profile):
         try:
             key_path = 'Software\\Skype\\ProtectedStorage'
             try:
@@ -24,7 +23,7 @@ class Skype:
 
             # num = winreg.QueryInfoKey(hkey)[1]
             k = winreg.EnumValue(hkey, 0)[1]
-            result_bytes = win32crypt.CryptUnprotectData(k, None, None, None, 0)[1]
+            result_bytes = CryptUnprotectData(k, profile)
             return result_bytes.decode()
         except Exception as e:
             log.debug(str(e))
@@ -113,7 +112,7 @@ class Skype:
 
         pwd_found = set()
         # retrieve the key used to build the salt
-        key = self.get_regkey()
+        key = self.get_regkey(profile)
         if not key:
             log.error('The salt has not been retrieved')
             return

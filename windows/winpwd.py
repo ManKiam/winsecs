@@ -36,7 +36,7 @@ class WindowsPassword:
         """
         pass
     #     file = os.path.join(profile['APPDATA'], 'Microsoft', 'Protect', profile['SID'], 'Preferred')
-    #     mkfiles = MasterKeyFiles().run(profile)
+    #     mkfiles = profile.get('mkfiles')
     #     if not os.path.isfile(file) or not mkfiles:
     #         return
 

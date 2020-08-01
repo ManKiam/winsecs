@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from .mkfiles import MasterKeyFiles
 from impacket.dpapi import VAULT_VCRD, VAULT_VPOL, VAULT_KNOWN_SCHEMAS, VAULT_VPOL_KEYS
 from winsecs.utils import bin_to_string
 from binascii import unhexlify
@@ -12,7 +11,7 @@ class VaultFiles:
         pass
         # pwd_found = {}
 
-        # mkfiles = MasterKeyFiles().run(profile)
+        # mkfiles = profile.get('mkfiles')
         # main_vault_directory = os.path.join(profile['LOCALAPPDATA'], 'Microsoft', 'Vault')
         # if not os.path.isdir(main_vault_directory) or not mkfiles:
         #     return

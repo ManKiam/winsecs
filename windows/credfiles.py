@@ -3,7 +3,6 @@ import os
 import traceback
 from datetime import datetime
 from impacket.dpapi import CredentialFile, DPAPI_BLOB, CREDENTIAL_BLOB
-from .mkfiles import MasterKeyFiles
 from winsecs.utils import bin_to_string, log, getUnixTime
 from binascii import unhexlify
 
@@ -12,7 +11,7 @@ class CredFiles:
     def run(self, profile):
         pwd_found = []
 
-        mkfiles = MasterKeyFiles().run(profile)
+        mkfiles = profile.get('mkfiles')
         creds_directory = os.path.join(profile['LOCALAPPDATA'], 'Microsoft', 'Credentials')
         creds_directory2 = os.path.join(profile['APPDATA'], 'Microsoft', 'Credentials')
         if (not os.path.isdir(creds_directory) and not os.path.isdir(creds_directory2)) or not mkfiles:

@@ -5,8 +5,10 @@
 
 import hmac
 import json
+import shutil
 import sqlite3
 import struct
+import tempfile
 import traceback
 import os
 
@@ -44,8 +46,7 @@ class Mozilla:
 
                     if cp.has_option(section, 'IsRelative'):
                         if cp.get(section, 'IsRelative') == '1':
-                            profile_path = os.path.join(
-                                directory, cp.get(section, 'Path').strip())
+                            profile_path = os.path.join(directory, cp.get(section, 'Path').strip())
                         elif cp.get(section, 'IsRelative') == '0':
                             profile_path = cp.get(section, 'Path').strip()
 
@@ -313,41 +314,41 @@ class Mozilla:
         # For login and password, keep :(key_id, iv, ciphertext)
         return asn1data[0][0].asOctets(), asn1data[0][1][1].asOctets(), asn1data[0][2].asOctets()
 
-    def get_login_data(self, profile):
+    def get_login_data(self, prof):
         """
         Get encrypted data (user / password) and host from the json or sqlite files
         """
-        conn = sqlite3.connect(os.path.join(profile, 'signons.sqlite'))
         logins = []
-        c = conn.cursor()
         try:
+            conn = sqlite3.connect(os.path.join(prof, 'signons.sqlite'))
+            c = conn.cursor()
             c.execute('SELECT * FROM moz_logins;')
             # Using sqlite3 database
             for row in c:
                 enc_username = row[6]
                 enc_password = row[7]
                 logins.append((self.decode_login_data(enc_username), self.decode_login_data(enc_password), row[1]))
-            return logins
+            conn.close()
         except sqlite3.OperationalError:  # Since Firefox 32, json is used instead of sqlite3
             try:
-                logins_json = os.path.join(profile, 'logins.json')
-                if os.path.isfile(logins_json):
-                    loginf = open(logins_json).read()
-                    if loginf:
-                        json_logins = json.loads(loginf)
-                        if 'logins' not in json_logins:
-                            log.debug('No logins key in logins.json')
-                            return logins
-                        for row in json_logins['logins']:
-                            enc_username = row['encryptedUsername']
-                            enc_password = row['encryptedPassword']
-                            logins.append((self.decode_login_data(enc_username), self.decode_login_data(enc_password), row['hostname']))
-                        return logins
+                logins_json = os.path.join(prof, 'logins.json')
+                assert os.path.isfile(logins_json)
+                loginf = open(logins_json).read()
+                assert loginf
+                json_logins = json.loads(loginf)
+                assert 'logins' in json_logins
+                for row in json_logins['logins']:
+                    enc_username = row['encryptedUsername']
+                    enc_password = row['encryptedPassword']
+                    logins.append((
+                        self.decode_login_data(enc_username),
+                        self.decode_login_data(enc_password),
+                        row['hostname']
+                    ))
             except Exception:
                 log.debug(traceback.format_exc())
 
-        return []
-
+        return logins
 
     def manage_masterpassword(self, master_password=b'', key_data=None, new_version=True):
         """
@@ -424,28 +425,44 @@ class Mozilla:
         """
         Main function
         """
-        pwd_found = set()
+        credentials = {}
+        cookies = set()
         self.path = self.path.format(**profile)
-        if os.path.exists(self.path):
-            for prof in self.get_firefox_profiles(self.path):
-                log.debug(f'Profile path found: {prof}')
+        if not os.path.exists(self.path):
+            return []
 
-                credentials = self.get_login_data(prof)
-                if credentials:
-                    for key in self.get_key(prof):
-                        for user, passw, url in credentials:
-                            try:
-                                pwd_found.add([
-                                    url,
-                                    unpad(DES3.new(key, DES3.MODE_CBC, user[1]).decrypt(user[2]).decode(), 8),
-                                    unpad(DES3.new(key, DES3.MODE_CBC, passw[1]).decrypt(passw[2]).decode(), 8)
-                                ])
-                            except Exception:
-                                log.debug('An error occured decrypting the password: {error}'.format(error=traceback.format_exc()))
-                else:
-                    log.info('Database empty')
+        for prof in self.get_firefox_profiles(self.path):
+            log.debug(f'Profile path found: {prof}')
 
-        return list(pwd_found)
+            creds = self.get_login_data(prof)
+            if not creds:
+                log.info('Database empty')
+                continue
+
+            pwd_found = set()
+            for key in self.get_key(prof):
+                for user, passw, url in creds:
+                    try:
+                        pwd_found.add([
+                            url,
+                            unpad(DES3.new(key, DES3.MODE_CBC, user[1]).decrypt(user[2]).decode(), 8),
+                            unpad(DES3.new(key, DES3.MODE_CBC, passw[1]).decrypt(passw[2]).decode(), 8)
+                        ])
+                    except Exception:
+                        log.debug('An error occured decrypting the password: {error}'.format(error=traceback.format_exc()))
+            if pwd_found:
+                credentials[prof] = pwd_found
+
+            cookie = os.path.join(os.path.dirname(prof), 'cookies.sqlite')
+            if os.path.isfile(cookie):
+                cookies.add(cookie)
+
+        ret = {}
+        if cookies:
+            ret['Cookies'] = list(cookies)
+        if credentials:
+            ret['Credentials'] = credentials
+        return ret
 
 
 # Name: path

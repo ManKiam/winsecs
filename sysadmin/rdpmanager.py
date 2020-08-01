@@ -1,18 +1,17 @@
 # -*- coding: utf-8 -*-
 import base64
-import win32crypt
+import os
 
 from xml.etree.cElementTree import ElementTree
-from winsecs.utils import log
+from winsecs.utils import log, CryptUnprotectData
 
-import os
 
 
 class RDPManager:
-    def decrypt_password(self, encrypted_password):
+    def decrypt_password(self, profile, encrypted_password):
         try:
             decoded = base64.b64decode(encrypted_password)
-            password_decrypted_bytes = win32crypt.CryptUnprotectData(decoded, None, None, None, 0)[1]
+            password_decrypted_bytes = CryptUnprotectData(decoded, profile)
             password_decrypted = password_decrypted_bytes.decode("utf-8")
             password_decrypted = password_decrypted.replace('\x00', '')
         except Exception:
@@ -27,15 +26,15 @@ class RDPManager:
             tag = 'URL'
         return tag.capitalize()
 
-    def check_tag_content(self, values, c):
+    def check_tag_content(self, profile, values, c):
         if 'password' in c.tag.lower():
-            values['Password'] = self.decrypt_password(c.text)
+            values['Password'] = self.decrypt_password(profile, c.text)
         else:
             tag = self.format_output_tag(c.tag)
             values[tag] = c.text
         return values
 
-    def parse_element(self, root, element):
+    def parse_element(self, profile, root, element):
         pwd_found = []
         try:
             for r in root.findall(element):
@@ -43,12 +42,12 @@ class RDPManager:
                 for child in r.getchildren():
                     if child.tag == 'properties':
                         for c in child.getchildren():
-                            values = self.check_tag_content(values, c)
+                            values = self.check_tag_content(profile, values, c)
                     elif child.tag == 'logonCredentials':
                         for c in child.getchildren():
-                            values = self.check_tag_content(values, c)
+                            values = self.check_tag_content(profile, values, c)
                     else:
-                        values = self.check_tag_content(values, child)
+                        values = self.check_tag_content(profile, values, child)
                 if values:
                     pwd_found.append(values)
         except Exception as e:
@@ -77,7 +76,7 @@ class RDPManager:
                 ]
 
                 for element in elements:
-                    pwd_found += self.parse_element(root, element)
+                    pwd_found += self.parse_element(profile, root, element)
 
                 try:
                     for r in root.find('FilesToOpen'):

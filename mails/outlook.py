@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-import win32crypt
-from winsecs.utils import OpenKey, winreg, log
+from winsecs.utils import OpenKey, winreg, log, CryptUnprotectData
 
 
 class Outlook:
-    def trySingleKey(self, keyPath):
+    def trySingleKey(self, profile, keyPath):
         try:
             hkey = OpenKey(winreg.HKEY_CURRENT_USER, keyPath)
         except Exception as e:
@@ -27,7 +26,7 @@ class Outlook:
                     for z in range(0, num_sskey):
                         k = winreg.EnumValue(sskey, z)
                         if 'password' in k[0].lower():
-                            values = self.retrieve_info(sskey, name_skey)
+                            values = self.retrieve_info(profile, sskey, name_skey)
 
                             if values:
                                 pwd_found.append(values)
@@ -36,14 +35,14 @@ class Outlook:
         winreg.CloseKey(hkey)
         return pwd_found
 
-    def retrieve_info(self, hkey, name_key):
+    def retrieve_info(self, profile, hkey, name_key):
         values = {}
         num = winreg.QueryInfoKey(hkey)[1]
         for x in range(0, num):
             k = winreg.EnumValue(hkey, x)
             if 'password' in k[0].lower():
                 try:
-                    password_bytes = win32crypt.CryptUnprotectData(k[1][1:], None, None, None, 0)[1]
+                    password_bytes = CryptUnprotectData(k[1][1:], profile)
                     #  password_bytes is <password in utf-16> + b'\x00\x00'
                     terminator = b'\x00\x00'
                     if password_bytes.endswith(terminator):
@@ -60,7 +59,7 @@ class Outlook:
                     values[k[0]] = str(k[1])
         return values
 
-    def run(self):
+    def run(self, profile):
         # https://github.com/0Fdemir/OutlookPasswordRecovery/blob/master/OutlookPasswordRecovery/Module1.vb
         key_paths = {
             "Software\\Microsoft\\Windows NT\\CurrentVersion\\Windows Messaging Subsystem\\Profiles\\Outlook",
@@ -81,7 +80,7 @@ class Outlook:
         }
         key_paths |= {"Software\\Microsoft\\Office\\%s\\Outlook\\Profiles\\Outlook" % x for x in major_versions}
         for key_path in key_paths:
-            result = self.trySingleKey(keyPath=key_path)
+            result = self.trySingleKey(profile, key_path)
             if result is not None:
                 return result
 

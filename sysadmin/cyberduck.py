@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 import base64
-import win32crypt
-
+import os
 from xml.etree.cElementTree import ElementTree
 
-from winsecs.utils import log
+from winsecs.utils import log, CryptUnprotectData
 
-import os
 
 
 class Cyberduck:
@@ -31,7 +29,7 @@ class Cyberduck:
                             or elem.attrib['name'].startswith('sftp') or elem.attrib['name'].startswith('http') \
                             or elem.attrib['name'].startswith('https'):
                         encrypted_password = base64.b64decode(elem.attrib['value'])
-                        password_bytes = win32crypt.CryptUnprotectData(encrypted_password, None, None, None, 0)[1]
+                        password_bytes = CryptUnprotectData(encrypted_password, profile)
                         pwd_found.append({
                             'URL': elem.attrib['name'],
                             'Password': password_bytes.decode("utf-8"),

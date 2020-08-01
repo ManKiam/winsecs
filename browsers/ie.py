@@ -1,9 +1,8 @@
 import hashlib
 import subprocess
 import traceback
-import win32crypt
 
-from winsecs.utils import OpenKey, platform, winreg, log
+from winsecs.utils import OpenKey, platform, winreg, log, CryptUnprotectData
 
 
 class IE:
@@ -98,10 +97,10 @@ class IE:
         winreg.CloseKey(hkey)
         return urls
 
-    def decipher_password(self, cipher_text, u):
+    def decipher_password(self, profile, cipher_text, u):
         pwd_found = set()
         # deciper the password
-        pwd = win32crypt.CryptUnprotectData(cipher_text, None, u, None, 0)[1]
+        pwd = CryptUnprotectData(cipher_text, profile, u)
         if not pwd:
             return []
 
@@ -136,7 +135,7 @@ class IE:
 
         return pwd_found
 
-    def run(self):
+    def run(self, profile):
         if float('.'.join(platform.version().split('.')[:2])) > 6.1:
             log.debug('Internet Explorer passwords are stored in Vault (check vault module)')
             return
@@ -163,7 +162,7 @@ class IE:
                         if h[1] == k[0][:40].lower():
                             nb_pass_found += 1
                             cipher_text = k[1]
-                            pwd_found |= self.decipher_password(cipher_text, h[0])
+                            pwd_found |= self.decipher_password(profile, cipher_text, h[0])
                             break
 
             winreg.CloseKey(hkey)

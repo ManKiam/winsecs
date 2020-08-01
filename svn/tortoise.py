@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import base64
-import win32crypt
-
 import os
+
+from winsecs.utils import CryptUnprotectData
 
 
 class Tortoise:
@@ -53,7 +53,7 @@ class Tortoise:
                 # encrypted the password
                 if result:
                     try:
-                        password_bytes = win32crypt.CryptUnprotectData(base64.b64decode(result), None, None, None, 0)[1]
+                        password_bytes = CryptUnprotectData(base64.b64decode(result), profile)
                         pwd_found.append({
                             'URL': url,
                             'Login': username,

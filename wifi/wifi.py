@@ -42,7 +42,7 @@ class Wifi:
         # interfaces_dir = os.path.join(profile['ALLUSERSPROFILE'], 'Microsoft\\Wlansvc\\Profiles\\Interfaces')
 
         # # for windows Vista or higher
-        # mkfiles = MasterKeyFiles().run(profile)
+        # mkfiles = profile.get('mkfiles')
         # if not os.path.isdir(interfaces_dir) or not mkfiles:
         #     return
 

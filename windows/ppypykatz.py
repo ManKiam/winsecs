@@ -17,7 +17,10 @@ class Pypykatz:
     - LSASS is running as a protected process
     - A security product blocks this access
     """
-    def run(self):
+    def run(self, profile):
+        if profile.get('pypykatz'):
+            return profile['pypykatz']
+
         mimi = None
         pwd_found = {}
         try:

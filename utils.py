@@ -1,3 +1,4 @@
+from binascii import unhexlify
 import logging
 import re
 import base64
@@ -6,7 +7,9 @@ import psutil
 from struct import unpack
 import winreg
 import platform
+import win32crypt
 
+from impacket.dpapi import DPAPI_BLOB
 log = logging.getLogger('winsecs')
 
 
@@ -87,3 +90,23 @@ def powershell_execute(script, func):
         pass
 
     return output
+
+
+def CryptUnprotectData(cipherText, profile, entropy=None):
+    decrypted = None
+
+    if profile.get('is_current_user'):
+        try:
+            decrypted = win32crypt.CryptUnprotectData(cipherText, None, entropy, None, 0)[1]
+        except:
+            pass
+
+    if not decrypted:
+        mkfiles = profile.get('mkfiles')
+        blob = DPAPI_BLOB(cipherText)
+        masterkey = mkfiles.get(bin_to_string(blob['GuidMasterKey']).lower())
+        if masterkey:
+            key = unhexlify(masterkey)
+            decrypted = blob.decrypt(key)
+
+    return decrypted
