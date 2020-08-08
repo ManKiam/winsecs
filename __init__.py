@@ -1,3 +1,5 @@
+__version__ = 1
+
 from . import (
     browsers, chats, databases, games, git,
     mails, maven, memory, multimedia, php, svn,
