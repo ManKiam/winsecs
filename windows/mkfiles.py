@@ -7,6 +7,7 @@ from hashlib import pbkdf2_hmac
 from binascii import hexlify, unhexlify
 
 from .lsa_secrets import LsaSecrets
+from .registry_secrets import RegistrySecrets
 from impacket.dpapi import MasterKeyFile, MasterKey, CredHist, DomainKey
 from winsecs.utils import log
 
@@ -156,7 +157,7 @@ class MasterKeyFiles:
                 log.info('Decrypted key with domain backup key provided')
                 log.info('Decrypted key: 0x%s' % hexlify(key).decode('latin-1'))
                 return hexlify(key).decode('latin-1')
-        if profile['password'] and profile['SID']:
+        if profile.get('password') and profile['SID']:
             key1, key2, key3 = self.deriveKeysFromUser(profile['SID'], profile['password'])
 
             # if mkf['flags'] & 4 ? SHA1 : MD4
@@ -200,17 +201,29 @@ class MasterKeyFiles:
         if profile.get('mkfiles'):
             return profile['mkfiles']
         founds = {}
+        self.dpapiSystem = {}
         files = os.path.join(profile['APPDATA'], 'Microsoft', 'Protect', profile['SID'])
         if not os.path.isdir(files):
             return
-        self.dpapiSystem = LsaSecrets().run(profile)
-        pypykatz = profile.get('pypykatz')
-        if pypykatz:
-            username = win32security.LookupAccountSid("", win32security.ConvertStringSidToSid(profile["SID"]))[0]
-            self.dpapiSystem['NTHASH'] = unhexlify(pypykatz.get(username, {}).get('Nthash', ''))
-            self.dpapiSystem['SHAHASH'] = unhexlify(pypykatz.get(username, {}).get('Shahash', ''))
+        lsa_secs = LsaSecrets().run(profile)
+        if lsa_secs:
+            for k, v in lsa_secs['logon_sessions'].items():
+                for found in v['dpapi_creds']:
+                    if found['credtype'] == 'dpapi' and found.get('masterkey'):
+                        founds[found['key_guid'].lower()] = found['masterkey']
+                if v['msv_creds'] and v['sid'] == profile['SID']:
+                    self.dpapiSystem['NTHASH'] = v['msv_creds'][0]['NThash']
+                    self.dpapiSystem['SHAHASH'] = v['msv_creds'][0]['SHAHash']
+        reg_secs = RegistrySecrets().run(profile)
+        if reg_secs and reg_secs['SECURITY']['cached_secrets']:
+            for i in reg_secs['SECURITY']['cached_secrets']:
+                if i['key_name'] == 'DPAPI_SYSTEM' and i['history'] == False:
+                    self.dpapiSystem.update({'MachineKey': i['machine_key'], 'UserKey': i['user_key']})
+                elif i['key_name'] == 'NL$KM' and i['history'] == False:
+                    self.dpapiSystem.update({'NL$KM': i['raw_secret']})
+
         for file in os.listdir(files):
-            if file == "Preferred":
+            if file.lower() == "preferred" or file.lower() in founds:
                 continue
             try:
                 found = self.decrypt(os.path.join(files, file), profile)

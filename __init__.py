@@ -1,4 +1,4 @@
-__version__ = 1
+__version__ = 2
 
 from . import (
     browsers, chats, databases, games, git,

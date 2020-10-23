@@ -22,15 +22,11 @@ class Autologon:
                     'AltDefaultPassword': '',
                 }
 
-                to_remove = []
-                for k in keys:
+                for k in list(keys):
                     try:
                         keys[k] = str(winreg.QueryValueEx(hkey, k)[0])
                     except Exception:
-                        to_remove.append(k)
-
-                for r in to_remove:
-                    keys.pop(r)
+                        del keys[k]
 
                 if keys:
                     pwd_found.append(keys)
