@@ -114,7 +114,7 @@ class Skype:
         # retrieve the key used to build the salt
         key = self.get_regkey(profile)
         if not key:
-            log.error('The salt has not been retrieved')
+            log.error('Skype: The salt has not been retrieved')
             return
 
         username = self.get_username(path)

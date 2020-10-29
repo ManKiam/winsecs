@@ -1,3 +1,3 @@
-from . import pidgin, psi, skype
+from . import pidgin, psi, skype, discord, telegram
 
-modules = {**pidgin.modules, **psi.modules, **skype.modules}
+modules = {**pidgin.modules, **psi.modules, **skype.modules, **discord.modules, **telegram.modules}

@@ -1,9 +1,9 @@
-__version__ = 2
+__version__ = 2.2
 
 from . import (
     browsers, chats, databases, games, git,
     mails, maven, memory, multimedia, php, svn,
-    sysadmin, wifi, windows
+    sysadmin, windows
 )
 
 modules = {
@@ -13,7 +13,7 @@ modules = {
     'maven': maven.modules, 'memory': memory.modules,
     'multimedia': multimedia.modules, 'php': php.modules,
     'svn': svn.modules, 'sysadmin': sysadmin.modules,
-    'wifi': wifi.modules, 'windows': windows.modules
+    'windows': windows.modules
 }
 
 

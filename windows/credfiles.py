@@ -26,14 +26,18 @@ class CredFiles:
                     masterkey = mkfiles.get(bin_to_string(blob['GuidMasterKey']).lower())
 
                     if masterkey:
-                        key = unhexlify(masterkey)
-                        decrypted = blob.decrypt(key)
-                        blob = CREDENTIAL_BLOB(decrypted)
+                        decrypted = blob.decrypt(unhexlify(masterkey))
                         if decrypted is not None:
+                            blob = CREDENTIAL_BLOB(decrypted)
+                            pwd = blob['Unknown3']
+                            try:
+                                pwd = blob['Username'].decode('utf-16-le')
+                            except:
+                                pass
                             pwd_found.append({
                                 'Target': blob['Target'].decode('utf-16-le').rstrip('\0'),
                                 'Username': blob['Username'].decode('utf-16-le').rstrip('\0'),
-                                'Password': blob['Unknown3'].decode('utf-16-le'),
+                                'Password': pwd,
                                 'LastWritten': datetime.utcfromtimestamp(getUnixTime(blob['LastWritten']))
                             })
                 except Exception:

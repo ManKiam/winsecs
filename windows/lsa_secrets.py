@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import os, subprocess, win32security, win32api, ctypes, psutil
 from pypykatz.pypykatz import pypykatz
+
+
 class disable_fsr:
     def __enter__(self):
         self.old_value = ctypes.c_long()
@@ -43,7 +45,9 @@ class LsaSecrets:
 
         results = {}
         try:
-            results = pypykatz.parse_minidump_file(r'C:\lsass.dmp').to_dict()
+            results = pypykatz.parse_minidump_file(r'C:\lsass.dmp')
+            results.reader.reader.file_handle.close()
+            results = results.to_dict()
             os.remove(r'C:\lsass.dmp')
         except Exception as e:
             pass

@@ -1,4 +1,5 @@
 import os
+import struct
 import traceback
 import win32security
 
@@ -61,89 +62,6 @@ class MasterKeyFiles:
             dk = DomainKey(data[:mkf['DomainKeyLen']])
             data = data[len(dk):]
 
-        if self.dpapiSystem.get('NTHASH'):
-            decryptedKey = mk.decrypt(self.dpapiSystem['NTHASH'])
-            if decryptedKey:
-                log.info('Decrypted key with key provided')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-        if self.dpapiSystem.get('SHAHASH'):
-            decryptedKey = mk.decrypt(self.dpapiSystem['SHAHASH'])
-            if decryptedKey:
-                log.info('Decrypted key with key provided')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-        if self.dpapiSystem.get('NTHASH') and profile['SID']:
-            key1, key2 = self.deriveKeysFromUserkey(profile['SID'], self.dpapiSystem['NTHASH'])
-            decryptedKey = mk.decrypt(key1)
-            if decryptedKey:
-                log.info('Decrypted key with key provided + SID')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-            decryptedKey = mk.decrypt(key2)
-            if decryptedKey:
-                log.info('Decrypted key with key provided + SID')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-        if self.dpapiSystem.get('SHAHASH') and profile['SID']:
-            key1, key2 = self.deriveKeysFromUserkey(profile['SID'], self.dpapiSystem['SHAHASH'])
-            decryptedKey = mk.decrypt(key1)
-            if decryptedKey:
-                log.info('Decrypted key with key provided + SID')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-            decryptedKey = mk.decrypt(key2)
-            if decryptedKey:
-                log.info('Decrypted key with key provided + SID')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-        if self.dpapiSystem.get('UserKey') and self.dpapiSystem.get('MachineKey') and not profile['SID']:
-            # We have hives, let's try to decrypt with them
-            decryptedKey = mk.decrypt(self.dpapiSystem['UserKey'])
-            if decryptedKey:
-                log.info('Decrypted key with UserKey')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-            decryptedKey = mk.decrypt(self.dpapiSystem['MachineKey'])
-            if decryptedKey:
-                log.info('Decrypted key with MachineKey')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-            decryptedKey = bkmk.decrypt(self.dpapiSystem['UserKey'])
-            if decryptedKey:
-                log.info('Decrypted Backup key with UserKey')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-            decryptedKey = bkmk.decrypt(self.dpapiSystem['MachineKey'])
-            if decryptedKey:
-                log.info('Decrypted Backup key with MachineKey')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-        if self.dpapiSystem.get('UserKey') and self.dpapiSystem.get('MachineKey'):
-            # Use SID + hash
-            # We have hives, let's try to decrypt with them
-            key1, key2 = self.deriveKeysFromUserkey(profile['SID'], self.dpapiSystem['UserKey'])
-            decryptedKey = mk.decrypt(key1)
-            if decryptedKey:
-                log.info('Decrypted key with UserKey + SID')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-            decryptedKey = bkmk.decrypt(key1)
-            if decryptedKey:
-                log.info('Decrypted Backup key with UserKey + SID')
-                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                return hexlify(decryptedKey).decode('latin-1')
-            if key2:
-                decryptedKey = mk.decrypt(key2)
-                if decryptedKey:
-                    log.info('Decrypted key with UserKey + SID')
-                    log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                    return hexlify(decryptedKey).decode('latin-1')
-                decryptedKey = bkmk.decrypt(key2)
-                if decryptedKey:
-                    log.info('Decrypted Backup key with UserKey + SID')
-                    log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
-                    return hexlify(decryptedKey).decode('latin-1')
         if self.dpapiSystem.get('PVK') and dk:
             pvkfile = open(self.dpapiSystem['PVK'], 'rb').read()
             key = PRIVATE_KEY_BLOB(pvkfile[len(PVK_FILE_HDR()):])
@@ -196,34 +114,149 @@ class MasterKeyFiles:
                 log.info('Decrypted Backup key with User Key (SHA1)')
                 log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
                 return hexlify(decryptedKey).decode('latin-1')
+        if self.dpapiSystem.get('SHAHASH') and profile['SID']:
+            key1, key2 = self.deriveKeysFromUserkey(profile['SID'], self.dpapiSystem['SHAHASH'])
+            decryptedKey = mk.decrypt(key1)
+            if decryptedKey:
+                log.info('Decrypted key with key provided + SID')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+            if key2:
+                decryptedKey = mk.decrypt(key2)
+                if decryptedKey:
+                    log.info('Decrypted key with key provided + SID')
+                    log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                    return hexlify(decryptedKey).decode('latin-1')
+        if self.dpapiSystem.get('NTHASH') and profile['SID']:
+            key1, key2 = self.deriveKeysFromUserkey(profile['SID'], self.dpapiSystem['NTHASH'])
+            decryptedKey = mk.decrypt(key1)
+            if decryptedKey:
+                log.info('Decrypted key with key provided + SID')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+            if key2:
+                decryptedKey = mk.decrypt(key2)
+                if decryptedKey:
+                    log.info('Decrypted key with key provided + SID')
+                    log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                    return hexlify(decryptedKey).decode('latin-1')
+        if self.dpapiSystem.get('SHAHASH'):
+            decryptedKey = mk.decrypt(self.dpapiSystem['SHAHASH'])
+            if decryptedKey:
+                log.info('Decrypted key with key provided')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+        if self.dpapiSystem.get('NTHASH'):
+            decryptedKey = mk.decrypt(self.dpapiSystem['NTHASH'])
+            if decryptedKey:
+                log.info('Decrypted key with key provided')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+        if self.dpapiSystem.get('UserKey') and self.dpapiSystem.get('MachineKey'):
+            # We have hives, let's try to decrypt with them
+            decryptedKey = mk.decrypt(self.dpapiSystem['UserKey'])
+            if decryptedKey:
+                log.info('Decrypted key with UserKey')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+            decryptedKey = mk.decrypt(self.dpapiSystem['MachineKey'])
+            if decryptedKey:
+                log.info('Decrypted key with MachineKey')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+            decryptedKey = bkmk.decrypt(self.dpapiSystem['UserKey'])
+            if decryptedKey:
+                log.info('Decrypted Backup key with UserKey')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+            decryptedKey = bkmk.decrypt(self.dpapiSystem['MachineKey'])
+            if decryptedKey:
+                log.info('Decrypted Backup key with MachineKey')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+        if self.dpapiSystem.get('UserKey') and self.dpapiSystem.get('MachineKey'):
+            # Use SID + hash
+            # We have hives, let's try to decrypt with them
+            key1, key2 = self.deriveKeysFromUserkey(profile['SID'], self.dpapiSystem['UserKey'])
+            decryptedKey = mk.decrypt(key1)
+            if decryptedKey:
+                log.info('Decrypted key with UserKey + SID')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+            decryptedKey = bkmk.decrypt(key1)
+            if decryptedKey:
+                log.info('Decrypted Backup key with UserKey + SID')
+                log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                return hexlify(decryptedKey).decode('latin-1')
+            if key2:
+                decryptedKey = mk.decrypt(key2)
+                if decryptedKey:
+                    log.info('Decrypted key with UserKey + SID')
+                    log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                    return hexlify(decryptedKey).decode('latin-1')
+                decryptedKey = bkmk.decrypt(key2)
+                if decryptedKey:
+                    log.info('Decrypted Backup key with UserKey + SID')
+                    log.info('Decrypted key: 0x%s' % hexlify(decryptedKey).decode('latin-1'))
+                    return hexlify(decryptedKey).decode('latin-1')
 
-    def run(self, profile):
+    def run(self, profile, system=None):
         if profile.get('mkfiles'):
             return profile['mkfiles']
         founds = {}
+        nt_sha = {}
         self.dpapiSystem = {}
-        files = os.path.join(profile['APPDATA'], 'Microsoft', 'Protect', profile['SID'])
+        if system:
+            files = system
+        else:
+            files = os.path.join(profile['APPDATA'], 'Microsoft', 'Protect', profile['SID'])
         if not os.path.isdir(files):
             return
         lsa_secs = LsaSecrets().run(profile)
         if lsa_secs:
             for k, v in lsa_secs['logon_sessions'].items():
-                for found in v['dpapi_creds']:
-                    if found['credtype'] == 'dpapi' and found.get('masterkey'):
-                        founds[found['key_guid'].lower()] = found['masterkey']
-                if v['msv_creds'] and v['sid'] == profile['SID']:
-                    self.dpapiSystem['NTHASH'] = v['msv_creds'][0]['NThash']
-                    self.dpapiSystem['SHAHASH'] = v['msv_creds'][0]['SHAHash']
+                if v['sid'] == profile['SID']:
+                    for found in v['dpapi_creds']:
+                        if found['credtype'] == 'dpapi' and found.get('masterkey'):
+                            founds[found['key_guid'].lower()] = found['masterkey']
+                if v['msv_creds']:
+                    if v['sid'] == profile['SID']:
+                        self.dpapiSystem['NTHASH'] = v['msv_creds'][0]['NThash']
+                        self.dpapiSystem['SHAHASH'] = v['msv_creds'][0]['SHAHash']
+                    else:
+                        nt_sha[v['msv_creds'][0]['NThash']] = v['msv_creds'][0]['SHAHash']
+
         reg_secs = RegistrySecrets().run(profile)
         if reg_secs and reg_secs['SECURITY']['cached_secrets']:
-            for i in reg_secs['SECURITY']['cached_secrets']:
-                if i['key_name'] == 'DPAPI_SYSTEM' and i['history'] == False:
-                    self.dpapiSystem.update({'MachineKey': i['machine_key'], 'UserKey': i['user_key']})
-                elif i['key_name'] == 'NL$KM' and i['history'] == False:
-                    self.dpapiSystem.update({'NL$KM': i['raw_secret']})
+            if system:
+                for i in reg_secs['SECURITY']['cached_secrets']:
+                    if i['key_name'] == 'DPAPI_SYSTEM' and i['history'] == False:
+                        self.dpapiSystem.update({'MachineKey': i['machine_key'], 'UserKey': i['user_key']})
+                    # elif i['key_name'] == 'NL$KM' and i['history'] == False:
+                    #     self.dpapiSystem.update({'NL$KM': i['raw_secret']})
+            for i in reg_secs['SAM']['local_users']:
+                if str(i['rid']) == profile['SID'].split('-')[-1] and i.get('nt_hash'):
+                    self.dpapiSystem['NTHASH'] = i['nt_hash']
+                    if i['nt_hash'] in nt_sha:
+                        self.dpapiSystem['SHAHASH'] = nt_sha[i['nt_hash']]
 
-        for file in os.listdir(files):
-            if file.lower() == "preferred" or file.lower() in founds:
+        list_files = os.listdir(files)
+        preferred_guid = None
+        if 'Preferred' in list_files:
+            list_files.remove('Preferred')
+            with open(os.path.join(files, 'Preferred'), 'rb') as pfile:
+                GUID1 = pfile.read(8)
+                GUID2 = pfile.read(8)
+
+            GUID = struct.unpack("<LHH", GUID1)
+            GUID2 = struct.unpack(">HLH", GUID2)
+            preferred_guid = f"{GUID[0]:08x}-{GUID[1]:04x}-{GUID[2]:04x}-{GUID2[0]:04x}-{GUID2[1]:08x}{GUID2[2]:04x}"
+            if preferred_guid in list_files:
+                with open(os.path.join(files, preferred_guid), 'rb') as pfile:
+                    profile['extra']['PreferredRaw'] = pfile.read()
+
+        for file in list_files:
+            if file.lower() in founds or not os.path.isfile(os.path.join(files, file)):
                 continue
             try:
                 found = self.decrypt(os.path.join(files, file), profile)

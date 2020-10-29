@@ -23,7 +23,7 @@ class PSI:
         pwd_found = set()
 
         for one_dir in ('psi\\profiles\\*\\accounts.xml', 'psi+\\profiles\\*\\accounts.xml'):
-            _path = os.path.join(profile['APPDATA'] , one_dir)
+            _path = os.path.join(profile['APPDATA'], one_dir)
             accs_files = glob(_path)
             for one_file in accs_files:
                 self.process_one_file(one_file)

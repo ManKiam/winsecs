@@ -95,18 +95,15 @@ def powershell_execute(script, func):
 def CryptUnprotectData(cipherText, profile, entropy=None):
     decrypted = None
 
-    if profile.get('is_current_user'):
+    blob = DPAPI_BLOB(cipherText)
+    masterkey = profile['mkfiles'].get(bin_to_string(blob['GuidMasterKey']).lower())
+    if masterkey:
+        decrypted = blob.decrypt(unhexlify(masterkey))
+
+    if decrypted is None and profile.get('is_current_user'):
         try:
             decrypted = win32crypt.CryptUnprotectData(cipherText, None, entropy, None, 0)[1]
         except:
             pass
-
-    if not decrypted:
-        mkfiles = profile.get('mkfiles')
-        blob = DPAPI_BLOB(cipherText)
-        masterkey = mkfiles.get(bin_to_string(blob['GuidMasterKey']).lower())
-        if masterkey:
-            key = unhexlify(masterkey)
-            decrypted = blob.decrypt(key)
 
     return decrypted
