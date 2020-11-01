@@ -472,6 +472,7 @@ browsers_address = {
     'cyberfox': '{APPDATA}\\8pecxstudios\\Cyberfox',
     'comodo IceDragon': '{APPDATA}\\Comodo\\IceDragon',
     'k-Meleon': '{APPDATA}\\K-Meleon',
+    'waterfox': '{APPDATA}\\Waterfox',
     'icecat': '{APPDATA}\\Mozilla\\icecat',
 }
 

