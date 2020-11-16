@@ -331,13 +331,7 @@ class Mozilla:
             conn.close()
         except sqlite3.OperationalError:  # Since Firefox 32, json is used instead of sqlite3
             try:
-                logins_json = os.path.join(prof, 'logins.json')
-                assert os.path.isfile(logins_json)
-                loginf = open(logins_json).read()
-                assert loginf
-                json_logins = json.loads(loginf)
-                assert 'logins' in json_logins
-                for row in json_logins['logins']:
+                for row in json.load(open(os.path.join(prof, 'logins.json')))['logins']:
                     enc_username = row['encryptedUsername']
                     enc_password = row['encryptedPassword']
                     logins.append((
@@ -426,7 +420,7 @@ class Mozilla:
         Main function
         """
         credentials = {}
-        cookies = set()
+        cookies = []
         self.path = self.path.format(**profile)
         if not os.path.exists(self.path):
             return []
@@ -439,27 +433,27 @@ class Mozilla:
                 log.info('Database empty')
                 continue
 
-            pwd_found = set()
+            pwd_found = []
             for key in self.get_key(prof):
                 for user, passw, url in creds:
                     try:
-                        pwd_found.add([
+                        pwd_found.append([
                             url,
-                            unpad(DES3.new(key, DES3.MODE_CBC, user[1]).decrypt(user[2]).decode(), 8),
-                            unpad(DES3.new(key, DES3.MODE_CBC, passw[1]).decrypt(passw[2]).decode(), 8)
+                            unpad(DES3.new(key, DES3.MODE_CBC, user[1]).decrypt(user[2]), 8).decode(),
+                            unpad(DES3.new(key, DES3.MODE_CBC, passw[1]).decrypt(passw[2]), 8).decode()
                         ])
                     except Exception:
                         log.debug('An error occured decrypting the password: {error}'.format(error=traceback.format_exc()))
             if pwd_found:
                 credentials[prof] = pwd_found
 
-            cookie = os.path.join(os.path.dirname(prof), 'cookies.sqlite')
+            cookie = os.path.join(prof, 'cookies.sqlite')
             if os.path.isfile(cookie):
-                cookies.add(cookie)
+                cookies.append(cookie)
 
         ret = {}
         if cookies:
-            ret['Cookies'] = list(cookies)
+            ret['Cookies'] = cookies
         if credentials:
             ret['Credentials'] = credentials
         return ret
