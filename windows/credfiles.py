@@ -32,7 +32,7 @@ class CredFiles:
                             blob = CREDENTIAL_BLOB(decrypted)
                             pwd = blob['Unknown3']
                             try:
-                                pwd = blob['Unknown3'].decode('utf-16-le')
+                                pwd = pwd.decode('utf-16-le').rstrip('\0')
                             except:
                                 pass
                             pwd_found.append({

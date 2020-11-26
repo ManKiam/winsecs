@@ -38,28 +38,35 @@ class Mozilla:
         cp = RawConfigParser()
         profile_list = []
 
-        try:
-            cp.read(os.path.join(directory, 'profiles.ini'))
-            for section in cp.sections():
-                if section.startswith('Profile') and cp.has_option(section, 'Path'):
-                    profile_path = None
+        if os.path.isfile(os.path.join(directory, 'profiles.ini')):
+            try:
+                cp.read(os.path.join(directory, 'profiles.ini'))
+                for section in cp.sections():
+                    if section.startswith('Profile') and cp.has_option(section, 'Path'):
+                        profile_path = None
 
-                    if cp.has_option(section, 'IsRelative'):
-                        if cp.get(section, 'IsRelative') == '1':
+                        if cp.has_option(section, 'IsRelative'):
+                            if cp.get(section, 'IsRelative') == '1':
+                                profile_path = os.path.join(directory, cp.get(section, 'Path').strip())
+                            elif cp.get(section, 'IsRelative') == '0':
+                                profile_path = cp.get(section, 'Path').strip()
+
+                        else:  # No "IsRelative" in profiles.ini
                             profile_path = os.path.join(directory, cp.get(section, 'Path').strip())
-                        elif cp.get(section, 'IsRelative') == '0':
-                            profile_path = cp.get(section, 'Path').strip()
 
-                    else:  # No "IsRelative" in profiles.ini
-                        profile_path = os.path.join(directory, cp.get(section, 'Path').strip())
+                        if profile_path:
+                            profile_list.append(profile_path.replace('/', '\\'))
 
-                    if profile_path:
-                        profile_list.append(profile_path.replace('/', '\\'))
+            except Exception as e:
+                log.error(f'An error occurred while reading profiles.ini: {e}')
 
-        except Exception as e:
-            log.error(f'An error occurred while reading profiles.ini: {e}')
+        else:
+            for i in os.listdir(directory):
+                i = os.path.join(directory, i, 'cookies.sqlite')
+                if os.path.isfile(i):
+                    profile_list.append(i)
 
-        return profile_list
+        return list(set(profile_list))
 
     def get_key(self, profile):
         """
