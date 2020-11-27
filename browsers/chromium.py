@@ -358,5 +358,5 @@ browsers_address = {
     'opera gx': ['{APPDATA}\\Opera Software\\Opera GX Stable', ['{APPDATA}\\Opera Software\\Opera GX Stable']],
 }
 
-modules = {i: Chromium(*browsers_address[i] if isinstance(browsers_address[i], list) else browsers_address[i]) for i in browsers_address}
+modules = {i: Chromium(*browsers_address[i]) if isinstance(browsers_address[i], list) else Chromium(browsers_address[i]) for i in browsers_address}
 modules["uc browser"] = UCBrowser()
