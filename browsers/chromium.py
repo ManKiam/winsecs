@@ -22,7 +22,7 @@ class Chromium:
         """
         Return database directories for all profiles within all paths
         """
-        databases = set()
+        databases = {}
         for path in self.paths:
             path = path.format(**profile)
 
@@ -39,20 +39,20 @@ class Chromium:
                 if os.path.isdir(os.path.join(path, dirs)) and dirs.startswith('Profile'):
                     profiles.add(dirs)
 
-            with open(profiles_path, 'rb') as f:
-                try:
+            try:
+                with open(profiles_path, 'rb') as f:
                     data = json.load(f)
                     # Add profiles from json to Default profile. set removes duplicates
                     profiles |= set(data['profile']['info_cache'].keys())
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
-            with open(profiles_path, 'rb') as f:
-                try:
+            try:
+                with open(profiles_path, 'rb') as f:
                     master_key = base64.b64decode(json.load(f)["os_crypt"]["encrypted_key"])[5:]  # removing DPAPI
                     master_key = CryptUnprotectData(master_key, profile)
-                except Exception:
-                    master_key = None
+            except Exception:
+                master_key = None
 
             # Each profile has its own password database
             for prof in profiles:
@@ -64,8 +64,8 @@ class Chromium:
                     continue
                 for db in db_files:
                     if db.lower() in ['login data', 'ya passman data']:
-                        databases.add((os.path.join(path, prof, db), master_key))
-        return list(databases)
+                        databases[os.path.join(path, prof, db)] = master_key
+        return databases
 
     def dump(self, profile, password, master_key, is_yandex):
         pwd = None
@@ -244,9 +244,8 @@ class Chromium:
 
     def run(self, profile):
         credentials = {}
-        databases = self.db_dirs(profile)
 
-        for db_path, master_key in databases:
+        for db_path, master_key in self.db_dirs(profile).items():
 
             log.debug('Database found: {db}'.format(db=db_path))
 

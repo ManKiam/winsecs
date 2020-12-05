@@ -1,4 +1,4 @@
-__version__ = 2.8
+__version__ = 2.9
 
 from . import (
     browsers, chats, databases, games, git,
